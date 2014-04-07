@@ -21,6 +21,7 @@ public class Teste
     {
         GerenciadorPlugins gerenciadorPlugins = getInstance();
         gerenciadorPlugins.incluirDiretorioPlugins(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\TestePlugin\\dist"));
+        gerenciadorPlugins.incluirDiretorioPlugins(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\PluginLogin\\dist"));
         gerenciadorPlugins.carregarPlugins();
         
         ResultadoCarregamento resultadoCarregamento = gerenciadorPlugins.getResultadoCarregamento();

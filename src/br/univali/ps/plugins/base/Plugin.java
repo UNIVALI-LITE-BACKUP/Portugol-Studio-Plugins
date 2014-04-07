@@ -45,7 +45,7 @@ public abstract class Plugin
 {
     private MetaDadosPlugin metaDados;
 
-    public MetaDadosPlugin getMetaDados()
+    public final MetaDadosPlugin getMetaDados()
     {
         return metaDados;
     }

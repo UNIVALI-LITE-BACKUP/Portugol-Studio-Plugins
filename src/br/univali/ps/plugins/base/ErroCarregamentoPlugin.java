@@ -1,7 +1,6 @@
 package br.univali.ps.plugins.base;
 
 import java.io.File;
-import java.io.IOException;
 
 /**
  *
@@ -9,20 +8,19 @@ import java.io.IOException;
  */
 public final class ErroCarregamentoPlugin extends Exception
 {
-    public ErroCarregamentoPlugin(String mensagem, File arquivoJar, Class classePlugin)
+
+    public ErroCarregamentoPlugin(String mensagem)
     {
-        super(String.format("Erro ao carregar o plugin '%s' do arquivo '%s': %s", classePlugin.getName(), obterCaminhoArquivo(arquivoJar), mensagem));
+        super(mensagem);
     }
     
-    private static String obterCaminhoArquivo(File arquivo)
+    public ErroCarregamentoPlugin(String mensagem, File arquivoJar, Class classePlugin)
     {
-        try
-        {
-            return arquivo.getCanonicalPath();                    
-        }
-        catch (IOException excecao)
-        {
-            return arquivo.getAbsolutePath();
-        }
+        super(String.format("Erro ao carregar o plugin '%s' do arquivo '%s': %s", classePlugin.getName(), Util.obterCaminhoArquivo(arquivoJar), mensagem));
+    }
+
+    public ErroCarregamentoPlugin(String mensagem, File arquivoJar)
+    {
+        super(String.format("Erro ao carregar o arquivo de plugin '%s'", Util.obterCaminhoArquivo(arquivoJar)));
     }
 }

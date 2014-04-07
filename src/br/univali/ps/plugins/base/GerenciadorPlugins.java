@@ -1,6 +1,5 @@
 package br.univali.ps.plugins.base;
 
-import static javax.xml.bind.JAXBContext.newInstance;
 import br.univali.portugol.util.jar.CarregadorJar;
 import br.univali.portugol.util.jar.Classes;
 import java.awt.image.BufferedImage;
@@ -9,13 +8,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
-import java.util.jar.JarInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -24,7 +23,6 @@ import javax.imageio.ImageIO;
 import javax.swing.Action;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
 
 /**
  *
@@ -39,9 +37,11 @@ public final class GerenciadorPlugins
 
     private final Map<UtilizadorPlugins, List<Plugin>> mapaUtilizadores = new HashMap<>();
     private final Map<Plugin, List<Action>> mapaAcoes = new HashMap<>();
+    //private final List<CarregadorJar> carregadores = new CarregadorJar();
 
     private final MetaDadosPlugins metaDadosPlugins = new MetaDadosPlugins(true);
     private final CarregadorJar carregadorJar = new CarregadorJar();
+    
     private final ResultadoCarregamento resultadoCarregamento = new ResultadoCarregamento();
 
     private boolean carregado = false;
@@ -95,13 +95,35 @@ public final class GerenciadorPlugins
         {
             carregadorJar.carregar();
 
-            Classes classes = carregadorJar.listarClasses().queEstendemOuImplementam(Plugin.class);
+            List<String> jarsInvalidos = listarArquivosJarInvalidos();
+            List<Class> classes = obterClassesValidas(jarsInvalidos);
+
+            for (String jarInvalido : jarsInvalidos)
+            {
+                resultadoCarregamento.adicionarErro(new ErroCarregamentoPlugin(String.format("Erro ao carregar o plugin: o arquivo '%s' deve conter apenas uma classe de plugin", jarInvalido)));
+            }
 
             for (Class classePlugin : classes)
             {
                 try
                 {
-                    carregarPlugin(classePlugin, carregadorJar.obterJarClasse(classePlugin));
+                    File arquivoJar = carregadorJar.obterJarClasse(classePlugin);
+
+                    if (declaracaoValida(classePlugin))
+                    {
+                        if (construtorValido(classePlugin))
+                        {
+                            carregarPlugin(classePlugin, arquivoJar);
+                        }
+                        else
+                        {
+                            throw new ErroCarregamentoPlugin(montarMensagemConstrutorInvalido(classePlugin), arquivoJar, classePlugin);
+                        }
+                    }
+                    else
+                    {
+                        throw new ErroCarregamentoPlugin(montarMensagemDeclaracaoInvalida(classePlugin), arquivoJar, classePlugin);
+                    }
                 }
                 catch (ErroCarregamentoPlugin erro)
                 {
@@ -113,6 +135,41 @@ public final class GerenciadorPlugins
         }
 
         return resultadoCarregamento;
+    }
+
+    private List<String> listarArquivosJarInvalidos()
+    {
+        List<String> jarsInvalidos = new ArrayList<>();
+
+        for (File arquivoJar : carregadorJar.getJars())
+        {
+            Classes classes = carregadorJar.listarClasses().dosJars(arquivoJar).queEstendemOuImplementam(Plugin.class);
+
+            if (classes.quantidade() > 1)
+            {
+                jarsInvalidos.add(Util.obterCaminhoArquivo(arquivoJar));
+            }
+        }
+
+        return jarsInvalidos;
+    }
+
+    private List<Class> obterClassesValidas(List<String> jarsInvalidos)
+    {
+        List<Class> classesValidas = new ArrayList<>();
+        Classes classesCarregadas = carregadorJar.listarClasses().queEstendemOuImplementam(Plugin.class);
+
+        for (Class classe : classesCarregadas)
+        {
+            String jarClasse = Util.obterCaminhoArquivo(carregadorJar.obterJarClasse(classe));
+
+            if (!jarsInvalidos.contains(jarClasse))
+            {
+                classesValidas.add(classe);
+            }
+        }
+
+        return classesValidas;
     }
 
     /**
@@ -139,7 +196,7 @@ public final class GerenciadorPlugins
         if (!pluginsCarregados.contains(classePlugin))
         {
             MetaDadosPlugin metaDadosPlugin = carregarMetaDados(arquivoJar, classePlugin);
-            
+
             pluginsCarregados.add(classePlugin);
             metaDadosPlugins.incluir(metaDadosPlugin);
         }
@@ -343,7 +400,7 @@ public final class GerenciadorPlugins
 
         return false;
     }
-    
+
     public MetaDadosPlugins obterMetaDadosPlugins()
     {
         return metaDadosPlugins;
@@ -352,11 +409,12 @@ public final class GerenciadorPlugins
     private MetaDadosPlugin carregarMetaDados(File arquivoJar, Class classePlugin) throws ErroCarregamentoPlugin
     {
         MetaDadosPlugin metaDadosPlugin = carregarMetaDadosXml(arquivoJar, classePlugin);
-        
+
         if (metaDadosPlugin.getNomeClasse().equals(classePlugin.getName()))
         {
             metaDadosPlugin.setClasse(classePlugin);
-        
+            metaDadosPlugin.setArquivoJar(carregadorJar.obterJarClasse(classePlugin));
+
             carregarLicenca(arquivoJar, classePlugin, metaDadosPlugin);
             carregarIcone("icone_16x16.png", arquivoJar, classePlugin, metaDadosPlugin);
             carregarIcone("icone_32x32.png", arquivoJar, classePlugin, metaDadosPlugin);
@@ -365,30 +423,30 @@ public final class GerenciadorPlugins
         {
             throw new ErroCarregamentoPlugin("A classe informada no arquivo de metadados 'plugin.xml' não corresponde à classe de plugin existente no arquivo JAR", arquivoJar, classePlugin);
         }
-        
+
         return metaDadosPlugin;
     }
-    
+
     private void carregarLicenca(final File arquivoJar, final Class classePlugin, final MetaDadosPlugin metaDadosPlugin) throws ErroCarregamentoPlugin
     {
         final InputStream stream = classePlugin.getClassLoader().getResourceAsStream("licenca.txt");
-        
+
         if (stream != null)
         {
             String linha;
             BufferedReader leitor = new BufferedReader(new InputStreamReader(stream));
             StringBuilder construtorString = new StringBuilder();
-            
+
             try
             {
                 while ((linha = leitor.readLine()) != null)
                 {
                     construtorString.append(linha);
-                    construtorString.append("\n");                            
+                    construtorString.append("\n");
                 }
-                
+
                 String licenca = construtorString.toString();
-                
+
                 if (licenca.trim().length() > 0)
                 {
                     metaDadosPlugin.setLicenca(licenca);
@@ -404,8 +462,21 @@ public final class GerenciadorPlugins
             }
             finally
             {
-                try { leitor.close(); } catch (IOException ex) { }
-                try { stream.close(); } catch (IOException ex) { }
+                try
+                {
+                    leitor.close();
+                }
+                catch (IOException ex)
+                {
+                }
+
+                try
+                {
+                    stream.close();
+                }
+                catch (IOException ex)
+                {
+                }
             }
         }
         else
@@ -413,18 +484,18 @@ public final class GerenciadorPlugins
             throw new ErroCarregamentoPlugin("O arquivo de licença 'licenca.txt' não foi encontrado", arquivoJar, classePlugin);
         }
     }
-    
+
     private void carregarIcone(final String nomeArquivo, final File arquivoJar, final Class classePlugin, final MetaDadosPlugin metaDadosPlugin) throws ErroCarregamentoPlugin
     {
         final InputStream stream = classePlugin.getClassLoader().getResourceAsStream(nomeArquivo);
-        
+
         if (stream != null)
         {
             try
             {
                 BufferedImage icone = ImageIO.read(stream);
                 int tamanho = obterTamanhoIcone(nomeArquivo);
-                
+
                 if (icone.getWidth() == tamanho && icone.getHeight() == tamanho)
                 {
                     if (tamanho == 16)
@@ -451,27 +522,27 @@ public final class GerenciadorPlugins
             throw new ErroCarregamentoPlugin(String.format("O arquivo de ícone '%s' não foi encontrado", nomeArquivo), arquivoJar, classePlugin);
         }
     }
-    
+
     private int obterTamanhoIcone(String nome)
     {
         Matcher avaliador = Pattern.compile("icone_(\\d{2})x(\\d{2}).png").matcher(nome);
-        
+
         avaliador.find();
-        
+
         return Integer.parseInt(avaliador.group(1));
     }
 
     private MetaDadosPlugin carregarMetaDadosXml(File arquivoJar, Class classePlugin) throws ErroCarregamentoPlugin
     {
         final InputStream stream = classePlugin.getClassLoader().getResourceAsStream("plugin.xml");
-        
+
         if (stream != null)
         {
             try
             {
                 JAXBContext contexto = JAXBContext.newInstance(MetaDadosPlugin.class);
                 MetaDadosPlugin metaDadosPlugin = (MetaDadosPlugin) contexto.createUnmarshaller().unmarshal(stream);
-                
+
                 return metaDadosPlugin;
             }
             catch (JAXBException excecao)
@@ -483,5 +554,90 @@ public final class GerenciadorPlugins
         {
             throw new ErroCarregamentoPlugin("O arquivo de metadados 'plugin.xml' não foi encontrado", arquivoJar, classePlugin);
         }
+    }
+
+    private boolean construtorValido(Class<? extends Plugin> classePlugin) throws ErroCarregamentoPlugin
+    {
+        Constructor[] construtores = classePlugin.getDeclaredConstructors();
+        
+        if (construtores.length == 1)
+        {
+            if (construtores[0].getParameterTypes().length == 0)
+            {
+                if (Modifier.isPublic(construtores[0].getModifiers()))
+                {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    private String montarMensagemConstrutorInvalido(Class<? extends Plugin> classePlugin)
+    {
+        Constructor[] construtores = classePlugin.getDeclaredConstructors();
+        
+        if (construtores.length > 1)
+        {
+            return "a classe de plugin deve possuir apenas um construtor";
+        }
+        if (!Modifier.isPublic(construtores[0].getModifiers()))
+        {
+            return "o construtor da classe de plugin deve ser público";
+        }
+        if (construtores[0].getParameterTypes().length > 0)
+        {
+            return "o construtor da classe de plugin não deve possuir parâmetros";
+        }
+            
+        return null;
+    }
+    
+    private boolean declaracaoValida(Class<? extends Plugin> classePlugin)
+    {
+        boolean publica = Modifier.isPublic(classePlugin.getModifiers());
+        boolean efinal = Modifier.isFinal(classePlugin.getModifiers());
+        boolean estatica = Modifier.isStatic(classePlugin.getModifiers());
+        boolean anonima = classePlugin.isAnonymousClass();
+        boolean sintetica = classePlugin.isSynthetic();
+        boolean membro = classePlugin.isMemberClass();
+        boolean local = classePlugin.isLocalClass();
+
+        return (publica && efinal && !estatica && !anonima && !sintetica && !membro && !local);
+    }
+
+    private String montarMensagemDeclaracaoInvalida(Class<? extends Plugin> classePlugin)
+    {
+        if (!Modifier.isPublic(classePlugin.getModifiers()))
+        {
+            return "a classe do plugin deve ser pública";
+        }
+        if (!Modifier.isFinal(classePlugin.getModifiers()))
+        {
+            return "a classe do plugin deve ser final";
+        }
+        if (Modifier.isStatic(classePlugin.getModifiers()))
+        {
+            return "a classe do plugin não pode ser estática";
+        }
+        if (classePlugin.isAnonymousClass())
+        {
+            return "a classe do plugin não pode ser uma classe anônima";
+        }
+        if (classePlugin.isSynthetic())
+        {
+            return "a classe do plugin não pode ser uma classe sintética";
+        }
+        if (classePlugin.isMemberClass())
+        {
+            return "a classe do plugin não pode ser uma classe membro";
+        }
+        if (classePlugin.isLocalClass())
+        {
+            return "a classe do plugin não pode ser uma classe local";
+        }
+
+        return null;
     }
 }
