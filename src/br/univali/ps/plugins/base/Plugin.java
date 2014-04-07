@@ -64,12 +64,23 @@ public abstract class Plugin
 
     /**
      * Método utilizado para inicializar o plugin. Este método será chamado automaticamente
-     * pelo {@link GerenciadorPlugins} cada vez que o plugin for consumido por um {@link UtilizadorPlugins}
+     * pelo {@link GerenciadorPlugins} cada vez que o plugin for instalado em um {@link UtilizadorPlugins}
      *
      * @param utilizador o objeto que está utilizando este plugin
      */
     protected void inicializar(UtilizadorPlugins utilizador)
     {
 
+    }
+    
+    /**
+     * Método utilizado para finalizar o plugin. Este método será chamado automaticamente
+     * pelo {@link GerenciadorPlugins} cada vez que o plugin for desinstalado de um {@link UtilizadorPlugins}
+     *
+     * @param utilizador o objeto que está utilizando este plugin
+     */
+    protected void finalizar(UtilizadorPlugins utilizador)
+    {
+        
     }
 }

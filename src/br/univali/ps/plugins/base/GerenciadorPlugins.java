@@ -290,6 +290,7 @@ public final class GerenciadorPlugins
                 utilizador.desinstalarPlugin(plugin);
                 desinstalarAcoesPlugin(plugin);
 
+                plugin.finalizar(utilizador);
                 iterador.remove();
             }
         }
@@ -419,6 +420,8 @@ public final class GerenciadorPlugins
             try
             {
                 Class classe = Class.forName(nomeClasses, true, carregadorJar.getCarregadorClasses());
+                
+                return classe;
             }
             catch (ClassNotFoundException excecaoCNF)
             {
