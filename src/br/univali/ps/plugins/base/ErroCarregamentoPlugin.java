@@ -16,11 +16,11 @@ public final class ErroCarregamentoPlugin extends Exception
     
     public ErroCarregamentoPlugin(String mensagem, File arquivoJar, Class classePlugin)
     {
-        super(String.format("Erro ao carregar o plugin '%s' do arquivo '%s': %s", classePlugin.getName(), Util.obterCaminhoArquivo(arquivoJar), mensagem));
+        super(String.format("Erro ao carregar o plugin '%s' do arquivo '%s': %s", classePlugin.getName(), Util.obterCaminhoAbsoluto(arquivoJar), mensagem));
     }
 
     public ErroCarregamentoPlugin(String mensagem, File arquivoJar)
     {
-        super(String.format("Erro ao carregar o arquivo de plugin '%s'", Util.obterCaminhoArquivo(arquivoJar)));
+        super(String.format("Erro ao carregar o arquivo de plugin '%s'", Util.obterCaminhoAbsoluto(arquivoJar)));
     }
 }

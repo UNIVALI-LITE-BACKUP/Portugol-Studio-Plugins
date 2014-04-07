@@ -20,8 +20,8 @@ public class Teste
     public static void main(String[] args) throws Exception
     {
         GerenciadorPlugins gerenciadorPlugins = getInstance();
-        gerenciadorPlugins.incluirDiretorioPlugins(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\TestePlugin\\dist"));
-        gerenciadorPlugins.incluirDiretorioPlugins(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\PluginLogin\\dist"));
+        gerenciadorPlugins.incluirDiretorioPlugin(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\TestePlugin\\dist"));
+        gerenciadorPlugins.incluirDiretorioPlugin(new File("D:\\Usuarios\\Luiz Fernando\\Documents\\Projetos\\Java\\PluginLogin\\dist"));
         gerenciadorPlugins.carregarPlugins();
         
         ResultadoCarregamento resultadoCarregamento = gerenciadorPlugins.getResultadoCarregamento();

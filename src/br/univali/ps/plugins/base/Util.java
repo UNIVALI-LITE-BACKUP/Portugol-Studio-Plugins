@@ -10,7 +10,7 @@ import java.io.IOException;
  */
 class Util
 {
-    public static String obterCaminhoArquivo(File arquivo)
+    public static String obterCaminhoAbsoluto(File arquivo)
     {
         try
         {
