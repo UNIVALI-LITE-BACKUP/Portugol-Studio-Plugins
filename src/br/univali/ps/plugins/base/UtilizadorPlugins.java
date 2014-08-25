@@ -12,6 +12,8 @@ public interface UtilizadorPlugins
     
     public void instalarAcaoPlugin(Plugin plugin, Action acao);
     
+    public String obterCodigoFonteUsuario();
+    
     public void desinstalarAcaoPlugin(Plugin plugin, Action acao);
     
     public void desinstalarPlugin(Plugin plugin);
